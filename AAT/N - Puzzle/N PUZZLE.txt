@@ -1,0 +1,93 @@
+import heapq
+
+class PuzzleNode:
+    def __init__(self, state, parent=None, action=None, cost=0, heuristic=0):
+        self.state = state
+        self.parent = parent
+        self.action = action
+        self.cost = cost
+        self.heuristic = heuristic
+
+    def __lt__(self, other):
+        return (self.cost + self.heuristic) < (other.cost + other.heuristic)
+
+def is_solvable(puzzle):
+    inversion_count = 0
+    n = len(puzzle)
+    flatten_puzzle = [puzzle[i][j] for i in range(n) for j in range(n)]
+    for i in range(n * n):
+        for j in range(i + 1, n * n):
+            if flatten_puzzle[i] > 0 and flatten_puzzle[j] > 0 and flatten_puzzle[i] > flatten_puzzle[j]:
+                inversion_count += 1
+    return inversion_count % 2 == 0
+
+def manhattan_distance(puzzle):
+    n = len(puzzle)
+    distance = 0
+    for i in range(n):
+        for j in range(n):
+            if puzzle[i][j] != 0:
+                target_row, target_col = divmod(puzzle[i][j] - 1, n)
+                distance += abs(i - target_row) + abs(j - target_col)
+    return distance
+
+def solve_puzzle(puzzle):
+    n = len(puzzle)
+    goal_state = [[i * n + j for j in range(n)] for i in range(n)]
+    start_node = PuzzleNode(puzzle, heuristic=manhattan_distance(puzzle))
+    if not is_solvable(puzzle):
+        return None
+    
+    open_list = []
+    closed_set = set()
+    heapq.heappush(open_list, start_node)
+    directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
+    moves = ["RIGHT", "LEFT", "DOWN", "UP"]
+
+    while open_list:
+        current_node = heapq.heappop(open_list)
+        closed_set.add(tuple(map(tuple, current_node.state)))
+
+        if current_node.state == goal_state:
+            path = []
+            while current_node.parent:
+                path.append(current_node.action)
+                current_node = current_node.parent
+            path.reverse()
+            return path
+
+        empty_row, empty_col = 0, 0
+        for i in range(n):
+            for j in range(n):
+                if current_node.state[i][j] == 0:
+                    empty_row, empty_col = i, j
+        
+        for d, move in zip(directions, moves):
+            new_row, new_col = empty_row + d[0], empty_col + d[1]
+            if 0 <= new_row < n and 0 <= new_col < n:
+                new_state = [list(row) for row in current_node.state]
+                new_state[empty_row][empty_col], new_state[new_row][new_col] = new_state[new_row][new_col], new_state[empty_row][empty_col]
+                if tuple(map(tuple, new_state)) not in closed_set:
+                    new_node = PuzzleNode(new_state, parent=current_node, action=move, cost=current_node.cost + 1, heuristic=manhattan_distance(new_state))
+                    heapq.heappush(open_list, new_node)
+
+    return None
+
+def main():
+    k = int(input())
+    puzzle = []
+    for _ in range(k):
+        row = [int(input()) for _ in range(k)]
+        puzzle.append(row)
+
+    solution = solve_puzzle(puzzle)
+
+    if solution:
+        print(len(solution))
+        for move in solution:
+            print(move)
+    else:
+        print("No solution exists.")
+
+if __name__ == "__main__":
+    main()
